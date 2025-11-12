@@ -1,5 +1,5 @@
 #[derive(Clone, Debug)]
-pub struct SlamMapSettings {
+pub struct OccupMapSettings {
     pub tile_size : f32,
 
     /// Orientation value for how much "weight" a datapoint adds to the grid
@@ -11,7 +11,7 @@ pub struct SlamMapSettings {
     pub base_size : [usize; 2] 
 }
 
-impl Default for SlamMapSettings {
+impl Default for OccupMapSettings {
     fn default() -> Self {
         Self {
             tile_size: 10.0,
@@ -24,7 +24,7 @@ impl Default for SlamMapSettings {
     }
 }
 
-impl SlamMapSettings {
+impl OccupMapSettings {
     pub fn tile_area(&self) -> f32 {
         self.tile_size * self.tile_size
     }
@@ -38,24 +38,24 @@ impl SlamMapSettings {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct SlamTile {
+pub struct OccupTile {
     pub prop : f32
 }
 
 #[derive(Clone)]
-pub struct SlamMap {
-    pub settings : SlamMapSettings,
+pub struct OccupMap {
+    pub settings : OccupMapSettings,
     pub origin : [i32;2],
-    pub tile_map : Vec<Vec<SlamTile>>,
+    pub tile_map : Vec<Vec<OccupTile>>,
 
     pub dp_list : Vec<DataPoint>,
     pub highest_prop : f32
 }
 
-impl SlamMap {
-    pub fn from_settings(settings : SlamMapSettings) -> Self {
+impl OccupMap {
+    pub fn from_settings(settings : OccupMapSettings) -> Self {
         Self {
-            tile_map: vec![vec![SlamTile::default(); settings.base_size[1]]; settings.base_size[0]],
+            tile_map: vec![vec![OccupTile::default(); settings.base_size[1]]; settings.base_size[0]],
             origin: [(settings.base_size[0]/2) as i32, (settings.base_size[1]/2) as i32],       // Set origin in the middle of the map
             dp_list : Vec::new(),
             highest_prop: 0.0,
@@ -64,7 +64,7 @@ impl SlamMap {
         }
     }
 
-    pub fn tile_at_pos(&self, x : f32, y : f32) -> Option<(&SlamTile, usize, usize)> {
+    pub fn tile_at_pos(&self, x : f32, y : f32) -> Option<(&OccupTile, usize, usize)> {
         let index_x = (x / self.settings.tile_size).round() as i32 + self.origin[0];
         let index_y = (y / self.settings.tile_size).round() as i32 + self.origin[1];
 
@@ -124,6 +124,15 @@ impl SlamMap {
             self.apply_datapoint(dp);
         }
     }
+
+    pub fn size(&self) -> (f32, f32) {
+        let (x, y) = self.size_tiles();
+        (x as f32 * self.settings.tile_size, y as f32 * self.settings.tile_size)
+    }
+
+    pub fn size_tiles(&self) -> (usize, usize) {
+        (self.tile_map.len(), self.tile_map[0].len())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -136,4 +145,65 @@ pub struct DataPoint {
 #[derive(Clone, Debug)]
 pub struct PlotSettings {
     pub tile_pixel_width : u32
+}
+
+/// Expects the same tile size!
+pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize) -> (f32, usize, usize) {
+    let (input_map_w, input_map_h) = input_map.size();
+    let (ref_map_w, ref_map_h) = ref_map.size();
+
+    if input_map_w > ref_map_w {
+        panic!("Input map is wider than reference map!");
+    }
+
+    if input_map_h > ref_map_h {
+        panic!("Input map is higher than reference map!");
+    }
+
+    let x_span = ref_map_w - input_map_w; 
+    let y_span = ref_map_h - input_map_h;
+
+    let tile_grid_size = tile_grid as f32 * input_map.settings.tile_size;
+
+    let x_iter = (x_span / tile_grid_size).floor() as usize;
+    let y_iter = (y_span / tile_grid_size).floor() as usize;
+
+    // Tracking variables
+    let mut delta_min = f32::INFINITY;
+    let mut t_x_min = 0;
+    let mut t_y_min = 0;
+
+    // Input map size in tiles
+    let (im_sizet_x, im_sizet_y) = input_map.size_tiles(); 
+
+    for t_x in 0..=x_iter {
+        for t_y in 0..=y_iter {
+            // Each whole map iteration to see where it lies best
+            // t_x and t_y describe the iter progress in the TILE_GRID, to get the amount of tiles in, multiply by `tile_grid`
+
+            // Iter tracking variables
+            let mut delta = 0.0;
+
+            for i_x in 0..im_sizet_x {
+                for i_y in 0..im_sizet_y {
+                    let im_tile = &input_map.tile_map[i_x][i_y];
+                    let rm_tile = &ref_map.tile_map[t_x*tile_grid + i_x][t_y*tile_grid + i_y];
+                    
+                    // TODO: Add proper threshold
+                    if im_tile.prop > 0.05 {
+                        delta += (im_tile.prop - rm_tile.prop).abs() + (1.0 - im_tile.prop * rm_tile.prop);
+                    }
+                }
+            }
+
+            // Check tracking
+            if delta < delta_min {
+                delta_min = delta;
+                t_x_min = t_x;
+                t_y_min = t_y;
+            }
+        }
+    }
+
+    (delta_min, t_x_min, t_y_min)
 }

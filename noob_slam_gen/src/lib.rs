@@ -46,9 +46,24 @@ pub const MAP1_P : [[f32; 2]; 7] = [
 ];
 
 pub const MAP1_N : [usize; 7] = [
-    50, 30, 10, 20, 10, 30, 0
+    50, 40, 15, 20, 10, 30, 0
 ];
 
 pub fn gen_map_1() -> Vec<DataPoint> {
     gen_map(MAP1_P, MAP1_N)
+}
+
+pub const MAP1_SNIP1_P : [[f32; 2]; 4] = [ 
+    [-750.0, 1000.0],
+    [-250.0, 1000.0],
+    [-250.0, 750.0],
+    [50.0, 750.0],
+];
+
+pub const MAP1_SNIP1_N : [usize; 4] = [
+   60, 25, 40, 0
+];
+
+pub fn gen_map_snip1() -> Vec<DataPoint> {
+    gen_map(MAP1_SNIP1_P, MAP1_SNIP1_N)
 }
