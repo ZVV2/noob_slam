@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+noob_slam_lib = { path = "./noob_slam_lib" }
+plotters = "0.3.7"
 
 [workspace]
-members = [ "noob_slam_lib" ]
+members = [ "noob_slam_gen", "noob_slam_lib" ]
