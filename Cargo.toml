@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 noob_slam_lib = { path = "./noob_slam_lib" }
+noob_slam_gen = { path = "./noob_slam_gen" }
 plotters = "0.3.7"
 
 [workspace]
