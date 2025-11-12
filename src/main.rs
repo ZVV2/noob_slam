@@ -4,14 +4,21 @@ use noob_slam_gen::*;
 use plotters::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut map = SlamMap::from_settings(SlamMapSettings::default());
+    let mut map = SlamMap::from_settings(SlamMapSettings {
+        base_size: [400, 400],
+        ..Default::default()
+    });
 
     let settings = PlotSettings {
-        tile_pixel_width: 10
+        tile_pixel_width: 2
     };
     
-    let dp_list = gen_line_test([-400.0, 0.0], [200.0, 250.0], 25);
-    map.apply_datapoint_list(dp_list);
+    // let dp_list = gen_line([-400.0, 0.0], [200.0, 250.0], 25);
+    // map.apply_datapoint_list(dp_list);
+
+    map.apply_datapoint_list(
+        gen_map_1()
+    );
 
     // Dimensions of the output image
     let width = settings.tile_pixel_width * map.tile_map.len() as u32;

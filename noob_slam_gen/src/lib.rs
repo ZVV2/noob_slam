@@ -1,6 +1,6 @@
 use noob_slam_lib::DataPoint;
 
-pub fn gen_line_test(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataPoint> {
+pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataPoint> {
     let f_r = 2.5;
     let mut point_list = Vec::new();
 
@@ -23,4 +23,32 @@ pub fn gen_line_test(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<
     }
 
     point_list
+}
+
+pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usize; C]) -> Vec<DataPoint> {
+    let mut dp_list = Vec::new();
+
+    for i in 0 .. (C-1) {
+        dp_list.append(&mut gen_line(point_list[i], point_list[i+1], n_point_list[i]));
+    }
+
+    dp_list
+}
+
+pub const MAP1_P : [[f32; 2]; 7] = [ 
+    [-1500.0, -1000.0],
+    [-1500.0, 1000.0],
+    [-250.0, 1000.0],
+    [-250.0, 750.0],
+    [250.0, 750.0],
+    [250.0, 1000.0],
+    [1250.0, 1000.0]
+];
+
+pub const MAP1_N : [usize; 7] = [
+    50, 30, 10, 20, 10, 30, 0
+];
+
+pub fn gen_map_1() -> Vec<DataPoint> {
+    gen_map(MAP1_P, MAP1_N)
 }
