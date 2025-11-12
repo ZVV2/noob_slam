@@ -29,13 +29,15 @@ impl Chunk {
 
 #[derive(Clone)]
 pub struct Map {
+    pub settings : MapSettings,
     pub chunk_map : Vec<Vec<Chunk>>
 }
 
 impl Map {
     pub fn from_settings(settings : MapSettings) -> Self {
         Self {
-            chunk_map: vec![]
+            chunk_map: vec![vec![Chunk::with_size(settings.chunk_size)]],
+            settings
         }
     }
 }
