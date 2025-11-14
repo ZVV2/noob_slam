@@ -128,7 +128,7 @@ impl OccupMap {
     }
 
     pub fn size(&self) -> (f32, f32) {
-        let (x, y) = self.tile_map.dim();
+        let (y, x) = self.tile_map.dim();
         (x as f32 * self.settings.tile_size, y as f32 * self.settings.tile_size)
     }
 
@@ -207,7 +207,7 @@ pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_gr
     let mut t_y_min = 0;
 
     // Input map size in tiles
-    let (im_sizet_x, im_sizet_y) = input_map.tile_map.dim(); 
+    let (im_sizet_y, im_sizet_x) = input_map.tile_map.dim(); 
 
     for t_x in 0..=x_iter {
         for t_y in 0..=y_iter {
@@ -219,8 +219,8 @@ pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_gr
 
             for i_x in 0..im_sizet_x {
                 for i_y in 0..im_sizet_y {
-                    let im_tile = &input_map.tile_map[(i_x, i_y)];
-                    let rm_tile = &ref_map.tile_map[(t_x*tile_grid + i_x, t_y*tile_grid + i_y)];
+                    let im_tile = &input_map.tile_map[(i_y, i_x)];
+                    let rm_tile = &ref_map.tile_map[(t_y*tile_grid + i_y, t_x*tile_grid + i_x)];
                     
                     // TODO: Add proper threshold
                     if im_tile.prop > 0.05 {

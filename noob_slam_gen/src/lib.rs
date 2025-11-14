@@ -35,35 +35,51 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
     dp_list
 }
 
-pub const MAP1_P : [[f32; 2]; 7] = [ 
-    [-1500.0, -1000.0],
-    [-1500.0, 1000.0],
-    [-250.0, 1000.0],
-    [-250.0, 750.0],
-    [250.0, 750.0],
-    [250.0, 1000.0],
-    [1250.0, 1000.0]
-];
+// MAP-1
+    pub const MAP1_P : [[f32; 2]; 7] = [ 
+        [-1500.0, -1000.0],
+        [-1500.0, 1000.0],
+        [-250.0, 1000.0],
+        [-250.0, 750.0],
+        [250.0, 750.0],
+        [250.0, 1000.0],
+        [1250.0, 1000.0]
+    ];
 
-pub const MAP1_N : [usize; 7] = [
-    50, 40, 15, 20, 10, 30, 0
-];
+    pub const MAP1_N : [usize; 7] = [
+        90, 80, 25, 35, 20, 45, 0
+    ];
 
-pub fn gen_map_1() -> Vec<DataPoint> {
-    gen_map(MAP1_P, MAP1_N)
-}
+    pub fn gen_map_1() -> Vec<DataPoint> {
+        gen_map(MAP1_P, MAP1_N)
+    }
 
-pub const MAP1_SNIP1_P : [[f32; 2]; 4] = [ 
-    [-750.0, 1000.0],
-    [-250.0, 1000.0],
-    [-250.0, 750.0],
-    [50.0, 750.0],
-];
+    pub const MAP1_SNIP1_P : [[f32; 2]; 4] = [ 
+        [-750.0, 1000.0],
+        [-250.0, 1000.0],
+        [-250.0, 750.0],
+        [50.0, 750.0],
+    ];
 
-pub const MAP1_SNIP1_N : [usize; 4] = [
-   60, 25, 40, 0
-];
+    pub const MAP1_SNIP1_N : [usize; 4] = [
+        60, 25, 40, 0
+    ];
 
-pub fn gen_map_snip1() -> Vec<DataPoint> {
-    gen_map(MAP1_SNIP1_P, MAP1_SNIP1_N)
-}
+    pub fn gen_map_snip1() -> Vec<DataPoint> {
+        gen_map(MAP1_SNIP1_P, MAP1_SNIP1_N)
+    }
+
+    pub const MAP1_SNIP2_P : [[f32; 2]; 3] = [ 
+        [-825.0, -370.0],
+        [-843.0, 630.0],
+        [-340.0, 630.0]
+    ];
+
+    pub const MAP1_SNIP2_N : [usize; 3] = [
+        60, 80, 0
+    ];
+
+    pub fn gen_map_snip2() -> Vec<DataPoint> {
+        gen_map(MAP1_SNIP2_P, MAP1_SNIP2_N)
+    }
+// 
