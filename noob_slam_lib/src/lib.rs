@@ -1,3 +1,5 @@
+use ndarray::Array2;
+
 #[derive(Clone, Debug)]
 pub struct OccupMapSettings {
     pub tile_size : f32,
@@ -8,7 +10,7 @@ pub struct OccupMapSettings {
     pub dp_radius : f32,
 
     /// Defines a base size in chunks using `u32`
-    pub base_size : [usize; 2] 
+    pub base_size : (usize, usize) 
 }
 
 impl Default for OccupMapSettings {
@@ -19,7 +21,7 @@ impl Default for OccupMapSettings {
             dp_weight: 10.0,
             dp_radius: 25.0,
 
-            base_size: [100, 100]
+            base_size: (100, 100)
         }
     }
 }
@@ -31,8 +33,8 @@ impl OccupMapSettings {
 
     pub fn map_size(&self) -> [f32; 2] {
         [ 
-            self.base_size[0] as f32 * self.tile_size, 
-            self.base_size[1] as f32 * self.tile_size 
+            self.base_size.0 as f32 * self.tile_size, 
+            self.base_size.0 as f32 * self.tile_size 
         ]
     }
 }
@@ -46,7 +48,7 @@ pub struct OccupTile {
 pub struct OccupMap {
     pub settings : OccupMapSettings,
     pub origin : [i32;2],
-    pub tile_map : Vec<Vec<OccupTile>>,
+    pub tile_map : Array2<OccupTile>,
 
     pub dp_list : Vec<DataPoint>,
     pub highest_prop : f32
@@ -55,8 +57,8 @@ pub struct OccupMap {
 impl OccupMap {
     pub fn from_settings(settings : OccupMapSettings) -> Self {
         Self {
-            tile_map: vec![vec![OccupTile::default(); settings.base_size[1]]; settings.base_size[0]],
-            origin: [(settings.base_size[0]/2) as i32, (settings.base_size[1]/2) as i32],       // Set origin in the middle of the map
+            tile_map: Array2::from_elem(settings.base_size, OccupTile::default()),
+            origin: [(settings.base_size.0/2) as i32, (settings.base_size.0/2) as i32],       // Set origin in the middle of the map
             dp_list : Vec::new(),
             highest_prop: 0.0,
 
@@ -68,10 +70,10 @@ impl OccupMap {
         let index_x = (x / self.settings.tile_size).round() as i32 + self.origin[0];
         let index_y = (y / self.settings.tile_size).round() as i32 + self.origin[1];
 
-        if (0 <= index_x) && (index_x < self.tile_map.len() as i32) {
-            if (0 <= index_y) && (index_y < self.tile_map[index_x as usize].len() as i32) {
+        if (0 <= index_x) && (index_x < self.tile_map.dim().0 as i32) {
+            if (0 <= index_y) && (index_y < self.tile_map.dim().1 as i32) {
                 return Some((
-                    &self.tile_map[index_x as usize][index_y as usize],
+                    &self.tile_map[(index_x as usize, index_y as usize)],
                     index_x as usize,
                     index_y as usize
                 ));
@@ -92,10 +94,10 @@ impl OccupMap {
 
             // Creating safe indecies to prevent out of bounds
             let min_idx_x = index_x.checked_sub(dp_idx_radius).unwrap_or(0);
-            let max_idx_x = (index_x + dp_idx_radius).min(self.tile_map.len() - 1);
+            let max_idx_x = (index_x + dp_idx_radius).min(self.tile_map.dim().0 - 1);
 
             let min_idx_y = index_y.checked_sub(dp_idx_radius).unwrap_or(0);
-            let max_idx_y = (index_y + dp_idx_radius).min(self.tile_map[0].len() - 1);
+            let max_idx_y = (index_y + dp_idx_radius).min(self.tile_map.dim().1 - 1);
 
             for idx_x in min_idx_x .. max_idx_x {
                 for idx_y in min_idx_y .. max_idx_y {
@@ -108,9 +110,9 @@ impl OccupMap {
 
                     // Check if the datapoint is in range
                     if dist_fac > 0.0 {
-                        self.tile_map[idx_x][idx_y].prop += delta_r * dist_fac * self.settings.tile_area();
+                        self.tile_map[(idx_y, idx_x)].prop += delta_r * dist_fac * self.settings.tile_area();
                         // Update highest probability
-                        self.highest_prop = self.highest_prop.max(self.tile_map[idx_x][idx_y].prop);        
+                        self.highest_prop = self.highest_prop.max(self.tile_map[(idx_y, idx_x)].prop);        
                     }
                 }
             }
@@ -126,12 +128,48 @@ impl OccupMap {
     }
 
     pub fn size(&self) -> (f32, f32) {
-        let (x, y) = self.size_tiles();
+        let (x, y) = self.tile_map.dim();
         (x as f32 * self.settings.tile_size, y as f32 * self.settings.tile_size)
     }
 
-    pub fn size_tiles(&self) -> (usize, usize) {
-        (self.tile_map.len(), self.tile_map[0].len())
+    pub fn sample_down_i(&self, factor : usize) -> Self {
+        if factor <= 1 {
+            panic!("Down-sampling factor of 1 or smaller is not valid!");
+        }
+
+        let mut new_settings = self.settings.clone();
+        new_settings.base_size = (new_settings.base_size.0/2, new_settings.base_size.1/2);
+        new_settings.tile_size *= factor as f32;
+
+        let new_rows = self.tile_map.dim().0 / factor;
+        let new_cols = self.tile_map.dim().1 / factor;
+
+        let mut new_tile_map = Array2::from_elem((new_rows, new_cols), OccupTile::default());
+        let mut highest_prop : f32 = 0.0;
+
+        for i_x in 0 .. new_cols {
+            for i_y in 0 .. new_rows {
+                let mut prop_sum = 0.0;
+
+                for n_x in 0 .. factor {
+                    for n_y in 0 .. factor {
+                        prop_sum += self.tile_map[(i_y*factor + n_y, i_x*factor + n_x)].prop;
+                    }
+                }
+
+                new_tile_map[(i_y, i_x)].prop = prop_sum / (factor * factor) as f32;
+
+                highest_prop = highest_prop.max(new_tile_map[(i_y, i_x)].prop);
+            }
+        }
+        
+        Self {
+            tile_map: new_tile_map,
+            origin: [self.origin[0]/(factor as i32), self.origin[1]/(factor as i32)],
+            highest_prop,
+            dp_list: self.dp_list.clone(),
+            settings: new_settings
+        }
     }
 }
 
@@ -140,11 +178,6 @@ pub struct DataPoint {
     pub pos : [f32; 2],
     /// Accuracy factor, recommended between 1-5
     pub f_acc : f32
-}
-
-#[derive(Clone, Debug)]
-pub struct PlotSettings {
-    pub tile_pixel_width : u32
 }
 
 /// Expects the same tile size!
@@ -174,7 +207,7 @@ pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_gr
     let mut t_y_min = 0;
 
     // Input map size in tiles
-    let (im_sizet_x, im_sizet_y) = input_map.size_tiles(); 
+    let (im_sizet_x, im_sizet_y) = input_map.tile_map.dim(); 
 
     for t_x in 0..=x_iter {
         for t_y in 0..=y_iter {
@@ -186,8 +219,8 @@ pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_gr
 
             for i_x in 0..im_sizet_x {
                 for i_y in 0..im_sizet_y {
-                    let im_tile = &input_map.tile_map[i_x][i_y];
-                    let rm_tile = &ref_map.tile_map[t_x*tile_grid + i_x][t_y*tile_grid + i_y];
+                    let im_tile = &input_map.tile_map[(i_x, i_y)];
+                    let rm_tile = &ref_map.tile_map[(t_x*tile_grid + i_x, t_y*tile_grid + i_y)];
                     
                     // TODO: Add proper threshold
                     if im_tile.prop > 0.05 {

@@ -1,0 +1,8 @@
+[package]
+name = "noob_slam_plt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+noob_slam_lib = { path = "../noob_slam_lib" }
+plotters = "0.3.7"
