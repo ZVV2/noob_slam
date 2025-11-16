@@ -108,3 +108,28 @@ fn correlation_tile_grid_vs_sample_down() {
         quick_plot_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip2_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 }
+
+#[test]
+fn rotation() {
+    let mut map = OccupMap::from_settings(OccupMapSettings {
+        base_size: (425, 375),
+        ..Default::default()
+    });
+
+    map.apply_datapoint_list(
+        noob_slam_gen::gen_map_1()
+    );
+
+    // Tests
+    println!("> [TEST] Rotating maps - Size: {}", map.tile_map.len());
+
+    for factor in 1..=9 {
+        let angle = factor * 10;
+        let inst = Instant::now();
+        let new_map = map.sample_down_i(factor).rotate((angle as f32).to_radians());
+
+        println!("| - (Angle {}° - F{}): {}x{} - {}s", angle, factor, new_map.tile_map.dim().0, new_map.tile_map.dim().1, inst.elapsed().as_secs_f32());
+
+        quick_plot_single(&new_map, format!("data/3_rotate/3_rotate_f{}_ang{}.png", factor, angle).as_str(), PlotSettings::default()).unwrap();
+    }
+}
