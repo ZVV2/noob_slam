@@ -1,3 +1,4 @@
+use std::fs;
 use std::time::Instant;
 
 use noob_slam_lib::{OccupMap, OccupMapSettings, simple_correlation_2d};
@@ -13,6 +14,9 @@ fn sample_down() {
     });
 
     map.apply_datapoint_list(dp_list);
+
+    // Create folder
+    fs::create_dir_all("data/1_sample_down").unwrap();
 
     // Tests
     println!("> [TEST] Sampling down maps - Size: {}", map.tile_map.len());
@@ -39,6 +43,9 @@ fn correlation_tile_grid_vs_sample_down() {
     ref_map.apply_datapoint_list(
         noob_slam_gen::gen_map_1()
     );
+
+    // Create folders
+    fs::create_dir_all("data/2_correlation").unwrap();
 
     // Snippet 1
     println!("> [TEST] Correlation comparison - Map snippet 1");
@@ -119,6 +126,9 @@ fn rotation() {
     map.apply_datapoint_list(
         noob_slam_gen::gen_map_1()
     );
+
+    // Create folders
+    fs::create_dir_all("data/3_rotate").unwrap();
 
     // Tests
     println!("> [TEST] Rotating maps - Size: {}", map.tile_map.len());
