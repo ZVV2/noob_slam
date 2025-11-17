@@ -10,7 +10,7 @@ noob_slam_plt = { path = "./noob_slam_plt" }
 plotters = "0.3.7"
 
 [workspace]
-members = [ "noob_slam_gen", "noob_slam_lib", "noob_slam_plt" ]
+members = ["chunked_map", "noob_slam_gen", "noob_slam_lib", "noob_slam_plt" ]
 
 [[test]]
 name = "noob_slam_bench"
