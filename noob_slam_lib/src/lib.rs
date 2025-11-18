@@ -1,5 +1,6 @@
-use chunked_map::RectChunkedMap;
 use glam::{Mat2, Vec2};
+use ndarray::Array2;
+
 #[derive(Clone, Debug)]
 pub struct OccupMapSettings {
     pub tile_size : f32,
@@ -7,7 +8,10 @@ pub struct OccupMapSettings {
     /// Orientation value for how much "weight" a datapoint adds to the grid
     pub dp_weight : f32,
     /// Base datapoint radius
-    pub dp_radius : f32
+    pub dp_radius : f32,
+
+    /// Defines a base size in chunks using `u32`
+    pub base_size : (usize, usize) 
 }
 
 impl Default for OccupMapSettings {
@@ -16,7 +20,9 @@ impl Default for OccupMapSettings {
             tile_size: 10.0,
 
             dp_weight: 10.0,
-            dp_radius: 25.0
+            dp_radius: 25.0,
+
+            base_size: (100, 100)
         }
     }
 }
@@ -25,26 +31,36 @@ impl OccupMapSettings {
     pub fn tile_area(&self) -> f32 {
         self.tile_size * self.tile_size
     }
+
+    pub fn map_size(&self) -> [f32; 2] {
+        [ 
+            self.base_size.0 as f32 * self.tile_size, 
+            self.base_size.1 as f32 * self.tile_size 
+        ]
+    }
 }
 
-#[derive(Clone, Default, Debug, Copy)]
+#[derive(Clone, Default, Debug)]
 pub struct OccupTile {
     pub prop : f32
 }
 
 #[derive(Clone)]
-pub struct OccupMap<const C : usize> {
-    pub tile_map : RectChunkedMap<OccupTile, C>,
+pub struct OccupMap {
     pub settings : OccupMapSettings,
+    pub origin : [i32;2],
+    /// Usually it's (row, col) for indexing, but as we are creating a map here, we will be using (x, y)
+    pub tile_map : Array2<OccupTile>,
 
     pub dp_list : Vec<DataPoint>,
     pub highest_prop : f32
 }
 
-impl<const C : usize> OccupMap<C> {
-    pub fn from_settings(base_size : (usize, usize), settings : OccupMapSettings) -> Self {
+impl OccupMap {
+    pub fn from_settings(settings : OccupMapSettings) -> Self {
         Self {
-            tile_map: RectChunkedMap::with_size_centered(base_size), 
+            tile_map: Array2::from_elem(settings.base_size, OccupTile::default()),
+            origin: [(settings.base_size.0/2) as i32, (settings.base_size.1/2) as i32],       // Set origin in the middle of the map
             dp_list : Vec::new(),
             highest_prop: 0.0,
 
@@ -52,48 +68,61 @@ impl<const C : usize> OccupMap<C> {
         }
     }
 
-    pub fn tile_index(&self, x : f32, y : f32) -> (i64, i64) {
-        ((x / self.settings.tile_size).floor() as i64, (y / self.settings.tile_size).floor() as i64)
+    pub fn tile_at_pos(&self, x : f32, y : f32) -> Option<(&OccupTile, usize, usize)> {
+        let index_x = (x / self.settings.tile_size).round() as i32 + self.origin[0];
+        let index_y = (y / self.settings.tile_size).round() as i32 + self.origin[1];
+
+        if (0 <= index_x) && (index_x < self.tile_map.dim().0 as i32) {
+            if (0 <= index_y) && (index_y < self.tile_map.dim().1 as i32) {
+                return Some((
+                    &self.tile_map[(index_x as usize, index_y as usize)],
+                    index_x as usize,
+                    index_y as usize
+                ));
+            }
+        }
+
+        None
     }
 
-    // pub fn tile_at_pos(&self, x : f32, y : f32) -> Option<((i64, i64), &OccupTile)> {
-    //     let index = ((x / self.settings.tile_size).floor() as i64, (y / self.settings.tile_size).floor() as i64);
-    //     self.tile_map.get(&index).map(|val| (index, val))
-    // }
+    pub fn tile_at_pos_mut(&mut self, x : f32, y : f32) -> Option<(&mut OccupTile, usize, usize)> {
+        let index_x = (x / self.settings.tile_size).round() as i32 + self.origin[0];
+        let index_y = (y / self.settings.tile_size).round() as i32 + self.origin[1];
 
-    // pub fn tile_at_pos_mut(&mut self, x : f32, y : f32) -> Option<((i64, i64), &mut OccupTile)> {
-    //     let index = ((x / self.settings.tile_size).floor() as i64, (y / self.settings.tile_size).floor() as i64);
-    //     self.tile_map.get_mut(&index).map(|val| (index, val))
-    // }
+        if (0 <= index_x) && (index_x < self.tile_map.dim().0 as i32) {
+            if (0 <= index_y) && (index_y < self.tile_map.dim().1 as i32) {
+                return Some((
+                    &mut self.tile_map[(index_x as usize, index_y as usize)],
+                    index_x as usize,
+                    index_y as usize
+                ));
+            }
+        }
+
+        None
+    }
 
     pub fn apply_datapoint(&mut self, dp : DataPoint) {
-        let index = self.tile_index(dp.pos[0], dp.pos[1]);
-
-        if self.tile_map.in_bounds(&index) {
+        if let Some((_tile, index_x, index_y)) = self.tile_at_pos(dp.pos[0], dp.pos[1]) {
             let delta = self.settings.dp_weight;
             let dp_radius = self.settings.dp_radius * dp.f_acc;
-            let dp_idx_radius = (dp_radius / self.settings.tile_size).round() as i64;
-
-            let (min_x, max_x) = self.tile_map.x_dim();
-            let (min_y, max_y) = self.tile_map.y_dim();
+            let dp_idx_radius = (dp_radius / self.settings.tile_size).round() as usize;
 
             // Relative delta => Delta divided by a "cone"
             let delta_r = delta / (dp_radius * dp_radius * 1.0 * core::f32::consts::PI / 3.0);
 
             // Creating safe indecies to prevent out of bounds
-            let min_idx_x = (index.0 - dp_idx_radius).max(min_x);
-            let max_idx_x = (index.0 + dp_idx_radius).min(max_x);
+            let min_idx_x = index_x.checked_sub(dp_idx_radius).unwrap_or(0);
+            let max_idx_x = (index_x + dp_idx_radius).min(self.tile_map.dim().0 - 1);
 
-            let min_idx_y = (index.1 - dp_idx_radius).max(min_y);
-            let max_idx_y = (index.1 + dp_idx_radius).min(max_y);
-
-            // TODO: Add map size extension
+            let min_idx_y = index_y.checked_sub(dp_idx_radius).unwrap_or(0);
+            let max_idx_y = (index_y + dp_idx_radius).min(self.tile_map.dim().1 - 1);
 
             for idx_x in min_idx_x .. max_idx_x {
                 for idx_y in min_idx_y .. max_idx_y {
                     let distance = (
-                        ((idx_x as f32 + 0.5) * self.settings.tile_size - dp.pos[0]).powi(2) +
-                        ((idx_y as f32 + 0.5) * self.settings.tile_size - dp.pos[1]).powi(2)
+                        ((idx_x as f32 - self.origin[0] as f32 + 0.5) * self.settings.tile_size - dp.pos[0]).powi(2) +
+                        ((idx_y as f32 - self.origin[1] as f32 + 0.5) * self.settings.tile_size - dp.pos[1]).powi(2)
                     ).sqrt();
 
                     let dist_fac = 1.0 - distance / dp_radius;
@@ -109,8 +138,6 @@ impl<const C : usize> OccupMap<C> {
 
             self.dp_list.push(dp);
         }
-
-        // TODO: Add automatic size extension
     }
 
     pub fn apply_datapoint_list(&mut self, dp_list : Vec<DataPoint>) {
@@ -132,30 +159,27 @@ impl<const C : usize> OccupMap<C> {
                 return self.clone();
             }
 
-            let fac_i = factor as i64;
             let mut new_settings = self.settings.clone();
-            new_settings.tile_size *= fac_i as f32;
+            new_settings.base_size = (new_settings.base_size.0/2, new_settings.base_size.1/2);
+            new_settings.tile_size *= factor as f32;
 
-            let x_dim_old = self.tile_map.x_dim();
-            let y_dim_old = self.tile_map.y_dim();
+            let new_cols = self.tile_map.dim().0 / factor;
+            let new_rows = self.tile_map.dim().1 / factor;
 
-            let mut new_tile_map: RectChunkedMap<OccupTile, C> = RectChunkedMap::with_size(
-                (x_dim_old.0 / fac_i, x_dim_old.1 / fac_i), (y_dim_old.0 / fac_i, y_dim_old.1 / fac_i)
-            );
+            let mut new_tile_map = Array2::from_elem((new_cols, new_rows), OccupTile::default());
             let mut highest_prop : f32 = 0.0;
 
-            for i_x in new_tile_map.x_range() {
-                for i_y in new_tile_map.y_range() {
+            for i_x in 0 .. new_cols {
+                for i_y in 0 .. new_rows {
                     let mut prop_sum = 0.0;
 
-                    for n_x in 0 .. fac_i {
-                        for n_y in 0 .. fac_i {
-                            prop_sum += self.tile_map.get(&(i_x*fac_i + n_x, i_y*fac_i + n_y))
-                                .map(|val| *val).unwrap_or_default().prop;
+                    for n_x in 0 .. factor {
+                        for n_y in 0 .. factor {
+                            prop_sum += self.tile_map[(i_x*factor + n_x, i_y*factor + n_y)].prop;
                         }
                     }
 
-                    new_tile_map[(i_x, i_y)].prop = prop_sum / (fac_i * fac_i) as f32;
+                    new_tile_map[(i_x, i_y)].prop = prop_sum / (factor * factor) as f32;
 
                     highest_prop = highest_prop.max(new_tile_map[(i_x, i_y)].prop);
                 }
@@ -163,6 +187,7 @@ impl<const C : usize> OccupMap<C> {
             
             Self {
                 tile_map: new_tile_map,
+                origin: [self.origin[0]/(factor as i32), self.origin[1]/(factor as i32)],
                 highest_prop,
                 dp_list: self.dp_list.clone(),
                 settings: new_settings
@@ -170,58 +195,41 @@ impl<const C : usize> OccupMap<C> {
         }
 
         /// Angle in radians
-        /// - Does not transfer datapoints (TODO)
         pub fn rotate(&self, angle : f32) -> Self {
-            let x_dim = self.tile_map.x_dim();
-            let y_dim = self.tile_map.y_dim();
-
             let rot_matr = Mat2::from_angle(angle);
 
-            let size_vectors = [
-                rot_matr * Vec2::new(x_dim.1 as f32, y_dim.1 as f32),
-                rot_matr * Vec2::new(x_dim.0 as f32, y_dim.1 as f32),
-                rot_matr * Vec2::new(x_dim.0 as f32, y_dim.0 as f32),
-                rot_matr * Vec2::new(x_dim.1 as f32, y_dim.0 as f32)
-            ];
+            let (tile_x, tile_y) = self.tile_map.dim();
+            let (width, height) = self.size();
 
-            let mut x_min : f32 = 0.0;
-            let mut x_max : f32 = 0.0;
-            let mut y_min : f32 = 0.0;
-            let mut y_max : f32 = 0.0;
+            let width_rot = rot_matr * Vec2::new(width, 0.0);
+            let height_rot = rot_matr * Vec2::new(0.0, height);
 
-            for v in size_vectors {
-                x_min = x_min.min(v.x);
-                x_max = x_max.max(v.x);
-                y_min = y_min.min(v.y);
-                y_max = y_max.max(v.y);
-            }
+            let new_width = width_rot.x.abs() + height_rot.x.abs();
+            let new_height = width_rot.y.abs() + height_rot.y.abs();
 
-            let mut new_tile_map: RectChunkedMap<OccupTile, C> = RectChunkedMap::with_chunks(
-                (x_min.floor() as i64, x_max.ceil() as i64), 
-                (y_min.floor() as i64, y_max.ceil() as i64)
+            let mut settings  = self.settings.clone();
+            settings.base_size = (
+                (new_width / self.settings.tile_size).ceil() as usize, 
+                (new_height / self.settings.tile_size).ceil() as usize,
             );
-            
-            for t_x in self.tile_map.x_range() {
-                for t_y in self.tile_map.y_range() {
-                    let old_tile = self.tile_map.get(&(t_x, t_y)).map(|val| *val).unwrap_or_default();
 
+            let mut new_map = OccupMap::from_settings(settings);
+            
+            for t_x in 0 .. tile_x {
+                for t_y in 0 .. tile_y {
+                    let old_tile = &self.tile_map[(t_x, t_y)];
                     let new_tile_pos = rot_matr * Vec2::new(
-                        (t_x as f32 + 0.5) * self.settings.tile_size, 
-                        (t_y as f32 + 0.5) * self.settings.tile_size
+                        (t_x as f32 - self.origin[0] as f32 + 0.5) * self.settings.tile_size, 
+                        (t_y as f32 - self.origin[1] as f32 + 0.5) * self.settings.tile_size
                     );
 
-                    if let Some(new_tile) = new_tile_map.get_mut(&self.tile_index(new_tile_pos.x, new_tile_pos.y)) {
+                    if let Some((new_tile, _new_tile_x, _new_tile_y)) = new_map.tile_at_pos_mut(new_tile_pos.x, new_tile_pos.y) {
                         new_tile.prop = old_tile.prop;
                     }
                 }
             }
 
-            Self {
-                tile_map: new_tile_map,
-                dp_list: Vec::new(),
-                highest_prop: self.highest_prop,
-                settings: self.settings.clone()
-            }
+            new_map
         }
     /**/
 }
@@ -234,7 +242,7 @@ pub struct DataPoint {
 }
 
 /// Expects the same tile size!
-pub fn simple_correlation_2d<const C : usize>(input_map : &OccupMap<C>, ref_map : &OccupMap<C>, tile_grid : usize) -> (f32, usize, usize) {
+pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize) -> (f32, usize, usize) {
     let (input_map_w, input_map_h) = input_map.tile_map.dim();
     let (ref_map_w, ref_map_h) = ref_map.tile_map.dim();
 
@@ -257,6 +265,9 @@ pub fn simple_correlation_2d<const C : usize>(input_map : &OccupMap<C>, ref_map 
     let mut t_x_min = 0;
     let mut t_y_min = 0;
 
+    // Input map size in tiles
+    let (im_sizet_x, im_sizet_y) = input_map.tile_map.dim(); 
+
     for t_x in 0..=x_iter {
         for t_y in 0..=y_iter {
             // Each whole map iteration to see where it lies best
@@ -265,8 +276,8 @@ pub fn simple_correlation_2d<const C : usize>(input_map : &OccupMap<C>, ref_map 
             // Iter tracking variables
             let mut delta = 0.0;
 
-            for i_x in 0..input_map_w {
-                for i_y in 0..input_map_h {
+            for i_x in 0..im_sizet_x {
+                for i_y in 0..im_sizet_y {
                     let im_tile = &input_map.tile_map[(i_x, i_y)];
                     let rm_tile = &ref_map.tile_map[(t_x*tile_grid + i_x, t_y*tile_grid + i_y)];
                     
