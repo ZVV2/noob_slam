@@ -1,0 +1,25 @@
+running 1 test
+> [TEST] Expanding maps - Base size: (200, 200)
+| - New size: (400, 400) - 0.008169s
+| - New size: (600, 600) - 0.0312198s
+| - New size: (800, 800) - 0.067924306s
+| - New size: (1000, 1000) - 0.12116689s
+| - New size: (1200, 1200) - 0.1826038s
+| - New size: (1400, 1400) - 0.26203218s
+| - New size: (1600, 1600) - 0.38080248s
+| - New size: (1800, 1800) - 0.46685722s
+| - New size: (2000, 2000) - 0.5978464s
+test expand ... ok
+
+running 1 test
+> [TEST] Expanding maps - Base size: (200, 200)
+| - New size: (400, 400) - 0.0026777s
+| - New size: (600, 600) - 0.0079529s
+| - New size: (800, 800) - 0.0183909s
+| - New size: (1000, 1000) - 0.0406059s
+| - New size: (1200, 1200) - 0.0472419s
+| - New size: (1400, 1400) - 0.0661396s
+| - New size: (1600, 1600) - 0.0841622s
+| - New size: (1800, 1800) - 0.1102142s
+| - New size: (2000, 2000) - 0.1371412s
+test expand ... ok

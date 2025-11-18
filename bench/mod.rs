@@ -1,7 +1,7 @@
 use std::fs;
 use std::time::Instant;
 
-use noob_slam_lib::{OccupMap, OccupMapSettings, simple_correlation_2d};
+use noob_slam_lib::{OccupMap, OccupMapSettings, correlation_trans_rot_2d, simple_correlation_2d};
 use noob_slam_plt::{PlotSettings, quick_plot_dual, quick_plot_single};
 
 /// This test performs some downsampling and looks at the results generated
@@ -51,22 +51,24 @@ fn correlation_tile_grid_vs_sample_down() {
     );
 
     for factor in (4..=10).step_by(2) {
+        println!("| - (Factor {})", factor);
+
         // Down-Sample
         let inst_ds = Instant::now();
         let new_ref_map = ref_map.sample_down_i(factor);
         let new_input_map = input_map.sample_down_i(factor);
 
-        let (delta_ds, x_ds, y_ds) = simple_correlation_2d(&new_input_map, &new_ref_map, 1);
+        let (delta_ds, (x_ds, y_ds)) = simple_correlation_2d(&new_input_map, &new_ref_map, 1);
 
         let dur_ds = inst_ds.elapsed();
+    
+        println!("| | -> DS: {} - X: {} - Y: {} - Time: {}s", delta_ds, x_ds, y_ds, dur_ds.as_secs_f32());
 
         // Tile-Grid
         let inst_tg = Instant::now();
-        let (delta_tg, x_tg, y_tg) = simple_correlation_2d(&input_map, &ref_map, factor);
+        let (delta_tg, (x_tg, y_tg)) = simple_correlation_2d(&input_map, &ref_map, factor);
         let dur_tg = inst_tg.elapsed();
 
-        println!("| - (Factor {})", factor);
-        println!("| | -> DS: {} - X: {} - Y: {} - Time: {}s", delta_ds, x_ds, y_ds, dur_ds.as_secs_f32());
         println!("| | -> TG: {} - X: {} - Y: {} - Time: {}s", delta_tg, x_tg, y_tg, dur_tg.as_secs_f32());
 
         quick_plot_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip1_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
@@ -82,22 +84,24 @@ fn correlation_tile_grid_vs_sample_down() {
     );
 
     for factor in (4..=10).step_by(2) {
+        println!("| - (Factor {})", factor);
+
         // Down-Sample
         let inst_ds = Instant::now();
         let new_ref_map = ref_map.sample_down_i(factor);
         let new_input_map = input_map.sample_down_i(factor);
 
-        let (delta_ds, x_ds, y_ds) = simple_correlation_2d(&new_input_map, &new_ref_map, 1);
+        let (delta_ds, (x_ds, y_ds)) = simple_correlation_2d(&new_input_map, &new_ref_map, 1);
 
         let dur_ds = inst_ds.elapsed();
 
+        println!("| | -> DS: {} - X: {} - Y: {} - Time: {}s", delta_ds, x_ds, y_ds, dur_ds.as_secs_f32());
+
         // Tile-Grid
         let inst_tg = Instant::now();
-        let (delta_tg, x_tg, y_tg) = simple_correlation_2d(&input_map, &ref_map, factor);
+        let (delta_tg, (x_tg, y_tg)) = simple_correlation_2d(&input_map, &ref_map, factor);
         let dur_tg = inst_tg.elapsed();
 
-        println!("| - (Factor {})", factor);
-        println!("| | -> DS: {} - X: {} - Y: {} - Time: {}s", delta_ds, x_ds, y_ds, dur_ds.as_secs_f32());
         println!("| | -> TG: {} - X: {} - Y: {} - Time: {}s", delta_tg, x_tg, y_tg, dur_tg.as_secs_f32());
 
         quick_plot_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip2_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
@@ -126,5 +130,59 @@ fn rotation() {
         println!("| - (Angle {}° - F{}): {}x{} - {}s", angle, factor, new_map.tile_map.dim().0, new_map.tile_map.dim().1, inst.elapsed().as_secs_f32());
 
         quick_plot_single(&new_map, format!("data/3_rotate/3_rotate_f{}_ang{}.png", factor, angle).as_str(), PlotSettings::default()).unwrap();
+    }
+}
+
+#[test]
+fn expand() {
+    let mut map = OccupMap::from_settings((200, 200), OccupMapSettings::default());
+
+    println!("> [TEST] Expanding maps - Base size: {:?}", map.tile_map.dim());
+    
+    for _ in 1 .. 10 {
+        let inst = Instant::now();
+        map.expand(100, 100, 100, 100);
+
+        println!("| - New size: {:?} - {}s", map.tile_map.dim(), inst.elapsed().as_secs_f32());
+    }
+}
+
+#[test]
+fn correlation_trans_rotation() {
+    let mut ref_map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
+
+    ref_map.apply_datapoint_list(
+        noob_slam_gen::gen_map_1()
+    );
+
+    ref_map = ref_map.rotate(2.25);
+
+    // Create folders
+    fs::create_dir_all("data/4_correlation_trans_rot").unwrap();
+
+    // Snippet 1
+    println!("> [TEST] Correlation comparison - Rotation and translation");
+
+    let mut input_map = OccupMap::from_settings((200, 200), OccupMapSettings::default());
+
+    input_map.apply_datapoint_list(
+        noob_slam_gen::gen_map_snip1()
+    );
+
+    for factor in (8..=16).step_by(2) {
+        println!("| - (Factor {})", factor);
+
+        // Down-Sample
+        let inst_ds = Instant::now();
+        let new_ref_map = ref_map.sample_down_i(factor);
+        let new_input_map = input_map.sample_down_i(factor);
+
+        let (delta_ds, angle_ds, (x_ds, y_ds)) = correlation_trans_rot_2d(&new_input_map, &new_ref_map, 1, 8);
+
+        let dur_ds = inst_ds.elapsed();
+    
+        println!("| | -> DS: {} - ANG: {} - X: {} - Y: {} - Time: {}s", delta_ds, angle_ds, x_ds, y_ds, dur_ds.as_secs_f32());
+
+        quick_plot_dual(&new_ref_map, &new_input_map.rotate(angle_ds), x_ds, y_ds, format!("data/4_correlation_trans_rot/4_correlation_trans_rot_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 }

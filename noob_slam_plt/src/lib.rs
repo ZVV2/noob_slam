@@ -4,7 +4,7 @@ use plotters::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct PlotSettings {
-    pub tile_pixel_width : u32
+    pub tile_pixel_width : usize
 }
 
 impl Default for PlotSettings {
@@ -16,38 +16,31 @@ impl Default for PlotSettings {
 }
 
 pub fn quick_plot_single(map : &OccupMap, path : &str, settings : PlotSettings) -> Result<(), Box<dyn std::error::Error>> {
-    // Dimensions of the output image
-    let width = settings.tile_pixel_width * map.tile_map.dim().0 as u32;
-    let height = settings.tile_pixel_width * map.tile_map.dim().1 as u32;
-
     // Number of rows and columns in the grid
     let (cols, rows) = map.tile_map.dim(); 
 
-    // Create the drawing area (bitmap backend)
-    let root  = BitMapBackend::new(path, (width, height)).into_drawing_area();
-    // root.fill(&WHITE)?;
+    // Dimensions of the output image
+    let width = settings.tile_pixel_width * cols;
+    let height = settings.tile_pixel_width * rows;
 
-    // Compute size of each cell
-    let cell_width = width as f64 / cols as f64;
-    let cell_height = height as f64 / rows as f64;
+    // Create the drawing area (bitmap backend)
+    let root  = BitMapBackend::new(path, (width as u32, height as u32)).into_drawing_area();
+    // root.fill(&WHITE)?;
 
     // Iterate through each cell and draw a colored rectangle
     for row in 0..rows {
         for col in 0..cols {
-            // compute top-left and bottom-right corners
-            let x0 = (col as f64 * cell_width) as i32;
-            let y0 = (row as f64 * cell_height) as i32;
-            let x1 = ((col + 1) as f64 * cell_width) as i32;
-            let y1 = ((row + 1) as f64 * cell_height) as i32;
-
             // Choose color based on row
-            let f = 255 - (map.tile_map[(col, rows - row - 1)].prop * 255.0).min(255.0) as u8;
+            let f = 255 - (map.tile_map[(col, row)].prop * 255.0).min(255.0) as u8;
             
             let color = RGBColor(f, f, f);
 
             // Draw the rectangle filled with this colour
             let rect = Rectangle::new(
-                [(x0, y0), (x1, y1)],    
+                [
+                    ((col * settings.tile_pixel_width) as i32, ((rows - row) * settings.tile_pixel_width) as i32), 
+                    (((col + 1) * settings.tile_pixel_width) as i32, ((rows - row - 1) * settings.tile_pixel_width) as i32)
+                ],    
                 color.filled()
             );
             root.draw(&rect)?;
@@ -60,29 +53,20 @@ pub fn quick_plot_single(map : &OccupMap, path : &str, settings : PlotSettings) 
 }
 
 pub fn quick_plot_dual(ref_map : &OccupMap, input_map : &OccupMap, offset_x : usize, offset_y : usize, path : &str, settings : PlotSettings) -> Result<(), Box<dyn std::error::Error>> {
-    // Dimensions of the output image
-    let width = settings.tile_pixel_width * ref_map.tile_map.dim().0 as u32;
-    let height = settings.tile_pixel_width * ref_map.tile_map.dim().1 as u32;
-
     // Number of rows and columns in the grid
     let (cols, rows) = ref_map.tile_map.dim(); 
 
-    // Create the drawing area (bitmap backend)
-    let root = BitMapBackend::new(path, (width, height)).into_drawing_area();
+    // Dimensions of the output image
+    let width = settings.tile_pixel_width * cols;
+    let height = settings.tile_pixel_width * rows;
 
-    // Compute size of each cell
-    let cell_width = width as f64 / cols as f64;
-    let cell_height = height as f64 / rows as f64;
+    // Create the drawing area (bitmap backend)
+    let root  = BitMapBackend::new(path, (width as u32, height as u32)).into_drawing_area();
+    // root.fill(&WHITE)?;
 
     // Iterate through each cell and draw a colored rectangle
     for row in 0..rows {
         for col in 0..cols {
-            // compute top-left and bottom-right corners
-            let x0 = (col as f64 * cell_width) as i32;
-            let y0 = (row as f64 * cell_height) as i32;
-            let x1 = ((col + 1) as f64 * cell_width) as i32;
-            let y1 = ((row + 1) as f64 * cell_height) as i32;
-
             // Choose color based on row
             let r = ref_map.tile_map[(col, rows - row - 1)].prop;
             let mut b = 0.0;
@@ -101,17 +85,21 @@ pub fn quick_plot_dual(ref_map : &OccupMap, input_map : &OccupMap, offset_x : us
                 }
             }
             
-            let colour = RGBColor((r * 255.0).min(255.0) as u8, 127, (b * 255.0).min(255.0) as u8);
+            let color = RGBColor((r * 255.0).min(255.0) as u8, 127, (b * 255.0).min(255.0) as u8);
 
             // Draw the rectangle filled with this colour
             let rect = Rectangle::new(
-                [(x0, y0), (x1, y1)],    
-                colour.filled()
+                [
+                    ((col * settings.tile_pixel_width) as i32, (row * settings.tile_pixel_width) as i32), 
+                    (((col + 1) * settings.tile_pixel_width) as i32, ((row + 1) * settings.tile_pixel_width) as i32)
+                ],    
+                color.filled()
             );
             root.draw(&rect)?;
         }
     }
 
     root.present()?;
+
     Ok(())
 }

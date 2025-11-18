@@ -36,7 +36,7 @@ pub struct OccupTile {
 #[derive(Clone)]
 pub struct OccupMap {
     pub settings : OccupMapSettings,
-    pub origin : (i64, i64),
+    pub origin : (usize, usize),
     /// Usually it's (row, col) for indexing, but as we are creating a map here, we will be using (x, y)
     pub tile_map : Array2<OccupTile>,
 
@@ -48,7 +48,7 @@ impl OccupMap {
     pub fn from_settings(base_size : (usize, usize), settings : OccupMapSettings) -> Self {
         Self {
             tile_map: Array2::from_elem(base_size, OccupTile::default()),
-            origin: ((base_size.0/2) as i64, (base_size.1/2) as i64),       // Set origin in the middle of the map
+            origin: (base_size.0/2, base_size.1/2),       // Set origin in the middle of the map
             dp_list : Vec::new(),
             highest_prop: 0.0,
 
@@ -58,14 +58,14 @@ impl OccupMap {
 
     pub fn tile_index(&self, pos : (f32, f32)) -> (usize, usize) {
         (
-            ((pos.0 / self.settings.tile_size).round() as i64 + self.origin.0) as usize,
-            ((pos.1 / self.settings.tile_size).round() as i64 + self.origin.1) as usize
+            (pos.0 / self.settings.tile_size).round() as usize + self.origin.0,
+            (pos.1 / self.settings.tile_size).round() as usize + self.origin.1
         )
     }
 
     pub fn tile_index_checked(&self, pos : (f32, f32)) -> Option<(usize, usize)> {
-        let x = (pos.0 / self.settings.tile_size).round() as i64 + self.origin.0;
-        let y = (pos.1 / self.settings.tile_size).round() as i64 + self.origin.1;
+        let x = (pos.0 / self.settings.tile_size).round() as i64 + self.origin.0 as i64;
+        let y = (pos.1 / self.settings.tile_size).round() as i64 + self.origin.1 as i64;
 
         if (0 <= x) && (x < self.tile_map.dim().0 as i64) {
             if (0 <= y) && (y < self.tile_map.dim().1 as i64) {
@@ -168,7 +168,7 @@ impl OccupMap {
             
             Self {
                 tile_map: new_tile_map,
-                origin: (self.origin.0/(factor as i64), self.origin.1/(factor as i64)),
+                origin: (self.origin.0/factor, self.origin.1/factor),
                 highest_prop,
                 dp_list: self.dp_list.clone(),
                 settings: new_settings
@@ -209,6 +209,18 @@ impl OccupMap {
 
             new_map
         }
+
+        pub fn expand(&mut self, x_neg : usize, x_pos : usize, y_neg : usize, y_pos : usize) {
+            let (x, y) = self.tile_map.dim();
+            let mut new_tile_map = Array2::from_elem(
+                (x_neg + x_pos + x, y_neg + y_pos + y), 
+                OccupTile::default()
+            );
+
+            new_tile_map.slice_mut(ndarray::s![x_neg..x_neg+x, y_neg..y_neg+y]).assign(&self.tile_map);
+
+            self.tile_map = new_tile_map;
+        }
     /**/
 }
 
@@ -220,7 +232,7 @@ pub struct DataPoint {
 }
 
 /// Expects the same tile size!
-pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize) -> (f32, usize, usize) {
+pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize) -> (f32, (usize, usize)) {
     let (input_map_w, input_map_h) = input_map.tile_map.dim();
     let (ref_map_w, ref_map_h) = ref_map.tile_map.dim();
 
@@ -275,26 +287,38 @@ pub fn simple_correlation_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_gr
         }
     }
 
-    (delta_min, t_x_min, t_y_min)
+    (delta_min, (t_x_min, t_y_min))
 }
 
-// /// - tile_grid -> How many tiles should be grouped together (length of tile-square)  
-// /// - angle_grid -> How many times the 90° are split up
-// pub fn correlation_trans_rot_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize, angle_grid : usize) -> (f32, f32, usize, usize) {
-//     let (input_map_w, input_map_h) = input_map.tile_map.dim();
-//     let (ref_map_w, ref_map_h) = ref_map.tile_map.dim();
+/// - tile_grid -> How many tiles should be grouped together (length of tile-square)  
+/// - angle_grid -> How many times the 90° are split up
+pub fn correlation_trans_rot_2d(input_map : &OccupMap, ref_map : &OccupMap, tile_grid : usize, angle_grid : usize) -> (f32, f32, (usize, usize)) {
+    let (input_map_w, input_map_h) = input_map.tile_map.dim();
+    let (ref_map_w, ref_map_h) = ref_map.tile_map.dim();
 
-//     if input_map_w > ref_map_w {
-//         panic!("Input map is wider than reference map!");
-//     }
+    if input_map_w > ref_map_w {
+        panic!("Input map is wider than reference map!");
+    }
 
-//     if input_map_h > ref_map_h {
-//         panic!("Input map is higher than reference map!");
-//     }
+    if input_map_h > ref_map_h {
+        panic!("Input map is higher than reference map!");
+    }
 
-//     for angle in (0..360).step_by(90/angle_grid) {
+    let mut delta_min = f32::INFINITY;
+    let mut c_min = (0, 0);
+    let mut angle_min = 0.0;
 
-//     }
+    for angle in (0..360).step_by(90/angle_grid) {
+        let rot_map = input_map.rotate((angle as f32).to_radians());
 
-//     ()
-// }
+        let (delta, c) = simple_correlation_2d(&rot_map, ref_map, tile_grid);
+
+        if delta < delta_min {
+            delta_min = delta;
+            c_min = c;
+            angle_min = (angle as f32).to_radians();
+        }
+    }
+
+    (delta_min, angle_min, c_min)
+}
