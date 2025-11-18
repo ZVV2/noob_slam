@@ -8,10 +8,7 @@ use noob_slam_plt::{PlotSettings, quick_plot_dual, quick_plot_single};
 #[test]
 fn sample_down() {
     let dp_list = noob_slam_gen::gen_map_1();
-    let mut map = OccupMap::from_settings(OccupMapSettings {
-        base_size: (400, 400),
-        ..Default::default()
-    });
+    let mut map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
 
     map.apply_datapoint_list(dp_list);
 
@@ -35,10 +32,7 @@ fn sample_down() {
 
 #[test]
 fn correlation_tile_grid_vs_sample_down() {
-    let mut ref_map = OccupMap::from_settings(OccupMapSettings {
-        base_size: (400, 400),
-        ..Default::default()
-    });
+    let mut ref_map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
 
     ref_map.apply_datapoint_list(
         noob_slam_gen::gen_map_1()
@@ -50,10 +44,7 @@ fn correlation_tile_grid_vs_sample_down() {
     // Snippet 1
     println!("> [TEST] Correlation comparison - Map snippet 1");
 
-    let mut input_map = OccupMap::from_settings(OccupMapSettings {
-        base_size: (200, 200),
-        ..Default::default()
-    });
+    let mut input_map = OccupMap::from_settings((200, 200), OccupMapSettings::default());
 
     input_map.apply_datapoint_list(
         noob_slam_gen::gen_map_snip1()
@@ -84,10 +75,7 @@ fn correlation_tile_grid_vs_sample_down() {
     // Snippet 2 - More imperfections
     println!("> [TEST] Correlation comparison - Map snippet 2");
 
-    let mut input_map = OccupMap::from_settings(OccupMapSettings {
-        base_size: (188, 195),
-        ..Default::default()
-    });
+    let mut input_map = OccupMap::from_settings((188, 195), OccupMapSettings::default());
 
     input_map.apply_datapoint_list(
         noob_slam_gen::gen_map_snip2()
@@ -118,10 +106,7 @@ fn correlation_tile_grid_vs_sample_down() {
 
 #[test]
 fn rotation() {
-    let mut map = OccupMap::from_settings(OccupMapSettings {
-        base_size: (425, 375),
-        ..Default::default()
-    });
+    let mut map = OccupMap::from_settings((425, 375), OccupMapSettings::default());
 
     map.apply_datapoint_list(
         noob_slam_gen::gen_map_1()

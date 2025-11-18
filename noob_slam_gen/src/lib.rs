@@ -13,10 +13,10 @@ pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataP
 
         point_list.push(
             DataPoint {
-                pos: [
+                pos: (
                     start[0] + (i as f32)*x_step + x_num *f_r*10.0,
                     start[1] + (i as f32)*y_step + y_num *f_r*10.0
-                ],
+                ),
                 f_acc: 1.0 + f_r*(x_num*x_num + y_num*y_num).sqrt()
             }
         );
