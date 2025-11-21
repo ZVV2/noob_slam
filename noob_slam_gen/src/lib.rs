@@ -1,6 +1,7 @@
-use noob_slam_lib::DataPoint;
+use glam::Vec2;
+use noob_slam_lib::DataPoint2;
 
-pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataPoint> {
+pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataPoint2> {
     let f_r = 2.5;
     let mut point_list = Vec::new();
 
@@ -12,8 +13,8 @@ pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataP
         let y_num : f32 = rand::random_range(-1.0 .. 1.0);
 
         point_list.push(
-            DataPoint {
-                pos: (
+            DataPoint2 {
+                pos: Vec2::new(
                     start[0] + (i as f32)*x_step + x_num *f_r*10.0,
                     start[1] + (i as f32)*y_step + y_num *f_r*10.0
                 ),
@@ -25,7 +26,7 @@ pub fn gen_line(start : [f32; 2], end : [f32; 2], n_points : usize) -> Vec<DataP
     point_list
 }
 
-pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usize; C]) -> Vec<DataPoint> {
+pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usize; C]) -> Vec<DataPoint2> {
     let mut dp_list = Vec::new();
 
     for i in 0 .. (C-1) {
@@ -50,7 +51,7 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
         90, 80, 25, 35, 20, 45, 0
     ];
 
-    pub fn gen_map_1() -> Vec<DataPoint> {
+    pub fn gen_map_1() -> Vec<DataPoint2> {
         gen_map(MAP1_P, MAP1_N)
     }
 
@@ -65,7 +66,7 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
         60, 25, 40, 0
     ];
 
-    pub fn gen_map_snip1() -> Vec<DataPoint> {
+    pub fn gen_map1_snip1() -> Vec<DataPoint2> {
         gen_map(MAP1_SNIP1_P, MAP1_SNIP1_N)
     }
 
@@ -79,7 +80,7 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
         60, 80, 0
     ];
 
-    pub fn gen_map_snip2() -> Vec<DataPoint> {
+    pub fn gen_map_snip2() -> Vec<DataPoint2> {
         gen_map(MAP1_SNIP2_P, MAP1_SNIP2_N)
     }
 // 

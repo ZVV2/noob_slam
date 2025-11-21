@@ -8,6 +8,7 @@ noob_slam_lib = { path = "./noob_slam_lib" }
 noob_slam_gen = { path = "./noob_slam_gen" }
 noob_slam_plt = { path = "./noob_slam_plt" }
 plotters = "0.3.7"
+glam = "0.30.9"
 
 [workspace]
 members = [ "noob_slam_gen", "noob_slam_lib", "noob_slam_plt" ]
