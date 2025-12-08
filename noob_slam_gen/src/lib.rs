@@ -36,7 +36,7 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
     dp_list
 }
 
-// MAP-1
+/* MAP 1 */
     pub const MAP1_P : [[f32; 2]; 7] = [ 
         [-1500.0, -1000.0],
         [-1500.0, 1000.0],
@@ -55,6 +55,12 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
         gen_map(MAP1_P, MAP1_N)
     }
 
+    /* # SNIPPET 1 
+     * 
+     * This snippet does not feature any shift nor scalings, meaning the two maps almost perfectly overlap
+     */
+
+
     pub const MAP1_SNIP1_P : [[f32; 2]; 4] = [ 
         [-750.0, 1000.0],
         [-250.0, 1000.0],
@@ -70,6 +76,11 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
         gen_map(MAP1_SNIP1_P, MAP1_SNIP1_N)
     }
 
+    /* # SNIPPET 2
+     *  
+     * This map snippet features some shift and improper dimensions
+     * 
+     */
     pub const MAP1_SNIP2_P : [[f32; 2]; 3] = [ 
         [-825.0, -370.0],
         [-843.0, 630.0],
@@ -83,4 +94,4 @@ pub fn gen_map<const C : usize>(point_list : [[f32; 2]; C], n_point_list : [usiz
     pub fn gen_map_snip2() -> Vec<DataPoint2> {
         gen_map(MAP1_SNIP2_P, MAP1_SNIP2_N)
     }
-// 
+/**/

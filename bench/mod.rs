@@ -42,6 +42,7 @@ fn vecmap_score_map_2d() {
     fs::create_dir_all("data/4_vecmap_score_map").unwrap();
 
     // Tests
+    // LIM
     println!("> [TEST] Vecmap score map (limited) - DP-Map Len: {}", ref_map.dp_list.len());
 
     let grid_size = 20.0;
@@ -61,6 +62,7 @@ fn vecmap_score_map_2d() {
         );
     }
 
+    // UNLIM
     println!("> [TEST] Vecmap score map (unlimited) - DP-Map Len: {}", ref_map.dp_list.len());
 
     let grid_size = 20.0;
@@ -70,7 +72,14 @@ fn vecmap_score_map_2d() {
         &ref_map, &input_map, 10.0, grid_size, noob_slam_lib::score_unlim_2d
     );
 
-    println!("| - Score: {} - Shift: {} - Time: {}s", delta_max, shift_at_max, inst.elapsed().as_secs_f32());
+    println!("| - [Correlation] Score: {} - Shift: {} - Time: {}s", delta_max, shift_at_max, inst.elapsed().as_secs_f32());
+
+    let inst = Instant::now();
+    let (delta_max, shift_at_max, i) = noob_slam_lib::vecmap_newton_iterate_2d(
+        &ref_map, &input_map, 10.0, Vec2::new(300.0, 400.0), 5.0, 50.0, noob_slam_lib::score_unlim_2d
+    );
+
+    println!("| - [Newton iteration] Score: {} - Shift: {} - Time: {}s ({} iterations)", delta_max, shift_at_max, inst.elapsed().as_secs_f32(), i);
 
     for i in 0 .. 10 {
         noob_slam_plt::vecmap_plt_score_map(
@@ -79,4 +88,24 @@ fn vecmap_score_map_2d() {
             0.8, i as f64 / 3.0
         );
     }
+}
+
+#[test]
+fn vecmap_newton_iterate_2d() {
+    let ref_map = VectorDPMap2::from_vec(
+        noob_slam_gen::gen_map_1()
+    );
+    let input_map = VectorDPMap2::from_vec(
+        noob_slam_gen::gen_map1_snip1()
+    );
+
+    println!("> [TEST] Vecmap newton iteration (unlimited score function) - DP-Map Len: {}", ref_map.dp_list.len());
+
+    let inst = Instant::now();
+    let (delta_max, shift_at_max, i) = noob_slam_lib::vecmap_newton_iterate_2d(
+        &ref_map, &input_map, 10.0, Vec2::new(300.0, 400.0), 2.5, 50.0, noob_slam_lib::score_unlim_2d
+    );
+
+    println!("| - [Newton iteration] Score: {} - Shift: {} - Time: {}s ({} iterations)", delta_max, shift_at_max, inst.elapsed().as_secs_f32(), i);
+
 }

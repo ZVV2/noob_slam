@@ -75,9 +75,22 @@ where
     score
 }
 
-// pub fn vecmap_derivative_unlim_2d(ref_map : &VectorDPMap2, input_map : &VectorDPMap2, dp_radius : f32, shift : Vec2, delta : f32) -> Vec2 {
-//     let s_0 = vecmap_score_unlim_2d(ref_map, input_map, dp_radius, shift); 
-// }
+pub fn vecmap_derivative_2d<S>(ref_map : &VectorDPMap2, input_map : &VectorDPMap2, dp_radius : f32, shift : Vec2, delta : f32, s_f : S) -> (f32, Vec2) 
+where
+    S : Fn(&DataPoint2, &DataPoint2, f32, Vec2) -> f32
+{
+    let s_0 = vecmap_score_2d(ref_map, input_map, dp_radius, shift, &s_f); 
+    let s_x = vecmap_score_2d(ref_map, input_map, dp_radius, shift + Vec2::new(delta, 0.0), &s_f);
+    let s_y = vecmap_score_2d(ref_map, input_map, dp_radius, shift + Vec2::new(0.0, delta), &s_f);
+
+    ( 
+        s_0,
+        Vec2::new(
+            (s_x - s_0) / delta,
+            (s_y - s_0) / delta
+        )
+    )
+}
 
 pub fn vecmap_score_map_2d<S>(ref_map : &VectorDPMap2, input_map : &VectorDPMap2, dp_radius : f32, grid_size : f32, s_f : S) 
     -> (f32, Vec2, Array2<f32>, Vec2) 
@@ -128,6 +141,23 @@ where
     (delta_max, shift_at_max, arr, base_shift)
 }
 
-// pub fn vecmap_iterate_unlim_2d(ref_map : &VectorDPMap2, input_map : &VectorDPMap2, dp_radius : f32, s_0 : Vec2) -> (f32, Vec2) {
+pub fn vecmap_newton_iterate_2d<S>(
+    ref_map : &VectorDPMap2, input_map : &VectorDPMap2, dp_radius : f32, mut shift_0 : Vec2, delta_min : f32, f_shift : f32, s_f : S
+) -> (f32, Vec2, u32) 
+where
+    S : Fn(&DataPoint2, &DataPoint2, f32, Vec2) -> f32
+{
+    let mut i = 0;
 
-// }
+    loop {
+        let (score, delta_shift) = vecmap_derivative_2d(ref_map, input_map, dp_radius, shift_0, 0.1, &s_f);
+
+        i += 1;
+
+        if delta_shift.length() < (delta_min / f_shift) {
+            return (score, shift_0, i)
+        }
+
+        shift_0 += delta_shift * f_shift;
+    }
+}
