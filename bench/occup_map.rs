@@ -2,7 +2,7 @@ use std::fs;
 use std::time::Instant;
 
 use noob_slam_lib::{OccupMap, OccupMapSettings, occupmap_correlate_rot_2d, occupmap_correlate};
-use noob_slam_plt::{PlotSettings, quick_plot_dual, quick_plot_single};
+use noob_slam_plt::{PlotSettings, occup_plt_dual, occup_plt_single};
 
 /// This test performs some downsampling and looks at the results generated
 #[test]
@@ -10,7 +10,7 @@ fn sample_down() {
     let dp_list = noob_slam_gen::gen_map_1();
     let mut map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
 
-    map.apply_datapoint_map(&dp_list);
+    map.apply_datapoint_vec(&dp_list);
 
     // Create folder
     fs::create_dir_all("data/1_sample_down").unwrap();
@@ -18,7 +18,7 @@ fn sample_down() {
     // Tests
     println!("> [TEST] Sampling down maps - Size: {}", map.tile_map.len());
 
-    quick_plot_single(&map, "data/1_sample_down/1_sample_down_f1.png", PlotSettings::default()).unwrap();
+    occup_plt_single(&map, "data/1_sample_down/1_sample_down_f1.png", PlotSettings::default()).unwrap();
 
     for factor in 2 ..=10 {
         let inst = Instant::now();
@@ -26,7 +26,7 @@ fn sample_down() {
 
         println!("| - (Factor {}): Size: {} - {}s", factor, new_map.tile_map.len(), inst.elapsed().as_secs_f32());
 
-        quick_plot_single(&new_map, format!("data/1_sample_down/1_sample_down_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
+        occup_plt_single(&new_map, format!("data/1_sample_down/1_sample_down_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 }
 
@@ -34,7 +34,7 @@ fn sample_down() {
 fn correlation_tile_grid_vs_sample_down() {
     let mut ref_map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
 
-    ref_map.apply_datapoint_map(
+    ref_map.apply_datapoint_vec(
         &noob_slam_gen::gen_map_1()
     );
 
@@ -46,7 +46,7 @@ fn correlation_tile_grid_vs_sample_down() {
 
     let mut input_map = OccupMap::from_settings((200, 200), OccupMapSettings::default());
 
-    input_map.apply_datapoint_map(
+    input_map.apply_datapoint_vec(
         &noob_slam_gen::gen_map1_snip1()
     );
 
@@ -71,7 +71,7 @@ fn correlation_tile_grid_vs_sample_down() {
 
         println!("| | -> TG: {} - X: {} - Y: {} - Time: {}s", delta_tg, x_tg, y_tg, dur_tg.as_secs_f32());
 
-        quick_plot_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip1_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
+        occup_plt_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip1_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 
     // Snippet 2 - More imperfections
@@ -79,7 +79,7 @@ fn correlation_tile_grid_vs_sample_down() {
 
     let mut input_map = OccupMap::from_settings((188, 195), OccupMapSettings::default());
 
-    input_map.apply_datapoint_map(
+    input_map.apply_datapoint_vec(
         &noob_slam_gen::gen_map_snip2()
     );
 
@@ -104,7 +104,7 @@ fn correlation_tile_grid_vs_sample_down() {
 
         println!("| | -> TG: {} - X: {} - Y: {} - Time: {}s", delta_tg, x_tg, y_tg, dur_tg.as_secs_f32());
 
-        quick_plot_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip2_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
+        occup_plt_dual(&new_ref_map, &new_input_map, x_ds, y_ds, format!("data/2_correlation/2_correlation_snip2_ds_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 }
 
@@ -112,7 +112,7 @@ fn correlation_tile_grid_vs_sample_down() {
 fn rotation() {
     let mut map = OccupMap::from_settings((425, 375), OccupMapSettings::default());
 
-    map.apply_datapoint_map(
+    map.apply_datapoint_vec(
         &noob_slam_gen::gen_map_1()
     );
 
@@ -129,7 +129,7 @@ fn rotation() {
 
         println!("| - (Angle {}° - F{}): {}x{} - {}s", angle, factor, new_map.tile_map.dim().0, new_map.tile_map.dim().1, inst.elapsed().as_secs_f32());
 
-        quick_plot_single(&new_map, format!("data/3_rotate/3_rotate_f{}_ang{}.png", factor, angle).as_str(), PlotSettings::default()).unwrap();
+        occup_plt_single(&new_map, format!("data/3_rotate/3_rotate_f{}_ang{}.png", factor, angle).as_str(), PlotSettings::default()).unwrap();
     }
 }
 
@@ -151,7 +151,7 @@ fn expand() {
 fn correlation_trans_rotation() {
     let mut ref_map = OccupMap::from_settings((400, 400), OccupMapSettings::default());
 
-    ref_map.apply_datapoint_map(
+    ref_map.apply_datapoint_vec(
         &noob_slam_gen::gen_map_1()
     );
 
@@ -165,7 +165,7 @@ fn correlation_trans_rotation() {
 
     let mut input_map = OccupMap::from_settings((200, 200), OccupMapSettings::default());
 
-    input_map.apply_datapoint_map(
+    input_map.apply_datapoint_vec(
         &noob_slam_gen::gen_map1_snip1()
     );
 
@@ -183,6 +183,6 @@ fn correlation_trans_rotation() {
     
         println!("| | -> DS: {} - ANG: {} - X: {} - Y: {} - Time: {}s", delta_ds, angle_ds, x_ds, y_ds, dur_ds.as_secs_f32());
 
-        quick_plot_dual(&new_ref_map, &new_input_map.rotate(angle_ds), x_ds, y_ds, format!("data/4_correlation_trans_rot/4_correlation_trans_rot_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
+        occup_plt_dual(&new_ref_map, &new_input_map.rotate(angle_ds), x_ds, y_ds, format!("data/4_correlation_trans_rot/4_correlation_trans_rot_f{}.png", factor).as_str(), PlotSettings::default()).unwrap();
     }
 }

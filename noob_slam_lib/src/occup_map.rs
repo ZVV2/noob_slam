@@ -116,7 +116,7 @@ impl OccupMap {
         }
     }
 
-    pub fn apply_datapoint_map(&mut self, dp_list : &VectorDPMap2) {
+    pub fn apply_datapoint_vec(&mut self, dp_list : &Vec<DataPoint2>) {
         for dp in dp_list {
             self.apply_datapoint(dp);
         }
